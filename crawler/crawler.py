@@ -94,7 +94,7 @@ class TelegramCrawler:
                 if keyword in data.message:
                     await self.__parse_message(data, entity.title)
                     break
-        except:
+        except (Exception,):
             print('Bad format of message')
 
     async def __parse_message(self, message, source_name):
@@ -118,7 +118,7 @@ class TelegramCrawler:
                                                            offset_date=None))
             for message in messages.messages:
                 comments.append(message.message)
-        except:
+        except (Exception,):
             print('No comments')
         event_id = str(hash(str(message.peer_id) + str(message.id)))
         data = {
