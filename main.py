@@ -15,7 +15,7 @@ session_name = 'my_session'
 
 
 async def callback(message):
-    requests.post('https://notify.bot.codex.so/u/', data={
+    requests.post('https://notify.bot.codex.so/u/9UARAXL0', data={
         'message': str(message),
     })
 

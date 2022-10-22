@@ -1,8 +1,14 @@
-from telethon.tl.functions.messages import SearchRequest, GetRepliesRequest
-from telethon.tl.functions.channels import JoinChannelRequest
+import logging
 from telethon import events
-from telethon.tl.types import InputMessagesFilterEmpty
 from telethon import TelegramClient
+from crawler.group.group import Group
+from crawler.message.message import Message
+
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
+)
+
+logger = logging.getLogger(__name__)
 
 
 class TelegramCrawler:
@@ -37,96 +43,59 @@ class TelegramCrawler:
 
     async def __prepare_crawling(self):
         """
-        Joining to public channels and get its entities
+        Create new instances of Group, joining to telegram channels
         """
         for channel in self.telegram_public:
-            channel_entity = await self.client.get_entity(channel)
-            await self.client(JoinChannelRequest(channel_entity))
-            self.channels.append(channel_entity)
+            channel = await Group.get_group_by_data(channel, self.client)
+            await channel.join_to_group()
+            self.channels.append(channel)
 
     async def __start_crawling(self):
         """
         Make first search in public channels and chats
         """
-
-        # Create empty filter for search
-        search_filter = InputMessagesFilterEmpty()
-
         # Take a look in the list of saved channels
         for channel in self.channels:
-            # Make a search in channel for every keyword
-            for keyword in self.keywords:
-                data = await self.client(SearchRequest(channel, q=keyword, filter=search_filter,
-                                                       min_date=None,
-                                                       max_date=None,
-                                                       offset_id=0,
-                                                       add_offset=0,
-                                                       limit=10000,
-                                                       max_id=0,
-                                                       min_id=0,
-                                                       from_id=None,
-                                                       hash=0))
+            messages = await channel.search_messages(self.keywords)
 
-                # Parse found messages
-                for message in data.messages:
-                    await self.__parse_message(message, channel.title)
+            # Parse found messages
+            for message in messages:
+                msg = Message(message)
+                await msg.get_replies(self.client)
+                await self.__parse_message(msg)
 
         # Create handler for incoming messages
         @self.client.on(events.NewMessage)
         async def handler(event):
             """
-            For incoming events calls parsing events function
+            Get message from incoming event, and check it
             :param event: incoming telegram event
             """
-            await self.__parse_event(event.original_update.message)
+            try:
+                message_from_event = Message(event.original_update.message)
+                if message_from_event.search_by_keywords(self.keywords):
+                    await self.__parse_message(message_from_event)
+            except:
+                print('Invalid type of message')
 
         # Run telegram client to wait for incoming events
         await self.client.run_until_disconnected()
 
-    async def __parse_event(self, data):
-        """
-        Checks for keywords incoming messages
-        :param data: incoming telegram message object
-        """
-        try:
-            entity = await self.client.get_entity(data.peer_id)
-            for keyword in self.keywords:
-                if keyword in data.message:
-                    await self.__parse_message(data, entity.title)
-                    break
-        except (Exception,):
-            print('Bad format of message')
-
-    async def __parse_message(self, message, source_name):
+    async def __parse_message(self, message):
         """
         Create object for callback function and call it
         :param message: message to parse
-        :param source_name: name of message source
         """
-        comments = []
+        channel = await Group.get_group_by_data(message.group_id, self.client)
 
-        try:
-            # Check for post's comments and messages replies
-            messages = await self.client(GetRepliesRequest(msg_id=message.id,
-                                                           offset_id=0,
-                                                           add_offset=0,
-                                                           limit=100000,
-                                                           max_id=0,
-                                                           min_id=0,
-                                                           hash=0,
-                                                           peer=message.peer_id,
-                                                           offset_date=None))
-            for message in messages.messages:
-                comments.append(message.message)
-        except (Exception,):
-            print('No comments')
-        event_id = str(hash(str(message.peer_id) + str(message.id)))
+        # Create hash
+        event_id = str(hash(str(message.message_id) + str(channel.group_id)))
         data = {
             'id': event_id,
-            'text': message.message,
+            'text': message.text,
             'date': message.date,
-            'author': source_name,
-            'comments': comments
+            'author': channel.title,
+            'comments': message.comments
         }
 
         await self.callback(data)
