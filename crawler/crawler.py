@@ -1,25 +1,24 @@
-from telethon.tl.functions.messages import SearchRequest
+from telethon.tl.functions.messages import SearchRequest, GetRepliesRequest
 from telethon.tl.functions.channels import JoinChannelRequest
 from telethon import events
 from telethon.tl.types import InputMessagesFilterEmpty
 from telethon import TelegramClient
 
-SESSION_NAME = 'my_session'
-
-api_id = ''
-api_hash = ''
-
 
 class TelegramCrawler:
     """
     The TelegramCrawler gets data from telegram
-    :param client - telethon client
     :param keywords - words to find
     :param telegram_public - telegram public channels or chats
     :param callback - function to handle found information
+    :param api_id - id of telegram app
+    :param api_hash - hash of telegram app
     """
 
-    def __init__(self, keywords, telegram_public, telegram_private, callback):
+    def __init__(self, keywords, telegram_public, telegram_private, callback, api_id, api_hash, session_name):
+        self.session_name = session_name
+        self.api_id = api_id
+        self.api_hash = api_hash
         self.client = None
         self.callback = callback
         self.channels = []
@@ -31,7 +30,7 @@ class TelegramCrawler:
         """
         Initiating Telegram Client and starting crawling
         """
-        async with TelegramClient(SESSION_NAME, api_id, api_hash) as client:
+        async with TelegramClient(self.session_name, self.api_id, self.api_hash) as client:
             self.client = client
             await self.__prepare_crawling()
             await self.__start_crawling()
@@ -62,7 +61,7 @@ class TelegramCrawler:
                                                        max_date=None,
                                                        offset_id=0,
                                                        add_offset=0,
-                                                       limit=100000,
+                                                       limit=10000,
                                                        max_id=0,
                                                        min_id=0,
                                                        from_id=None,
@@ -70,7 +69,7 @@ class TelegramCrawler:
 
                 # Parse found messages
                 for message in data.messages:
-                    await self.__parse_message(message, channel.title, channel.id)
+                    await self.__parse_message(message, channel.title)
 
         # Create handler for incoming messages
         @self.client.on(events.NewMessage)
@@ -89,21 +88,45 @@ class TelegramCrawler:
         Checks for keywords incoming messages
         :param data: incoming telegram message object
         """
-        entity = await self.client.get_entity(data.peer_id)
-        for keyword in self.keywords:
-            if keyword in data.message:
-                await self.__parse_message(data, entity.title, entity.id)
-                break
+        try:
+            entity = await self.client.get_entity(data.peer_id)
+            for keyword in self.keywords:
+                if keyword in data.message:
+                    await self.__parse_message(data, entity.title)
+                    break
+        except:
+            print('Bad format of message')
 
-    async def __parse_message(self, message, source_name, source_id):
+    async def __parse_message(self, message, source_name):
         """
         Create object for callback function and call it
         :param message: message to parse
+        :param source_name: name of message source
         """
+        comments = []
+
+        try:
+            # Check for post's comments and messages replies
+            messages = await self.client(GetRepliesRequest(msg_id=message.id,
+                                                           offset_id=0,
+                                                           add_offset=0,
+                                                           limit=100000,
+                                                           max_id=0,
+                                                           min_id=0,
+                                                           hash=0,
+                                                           peer=message.peer_id,
+                                                           offset_date=None))
+            for message in messages.messages:
+                comments.append(message.message)
+        except:
+            print('No comments')
+        event_id = str(hash(str(message.peer_id) + str(message.id)))
         data = {
-            'title': message.message,
+            'id': event_id,
+            'text': message.message,
             'date': message.date,
             'author': source_name,
+            'comments': comments
         }
 
         await self.callback(data)

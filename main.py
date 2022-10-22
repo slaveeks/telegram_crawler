@@ -4,9 +4,14 @@ import requests
 
 keywords = ['editor.js', 'CodeX']
 
-telegram_public = []
+telegram_public = ['']
 
 telegram_private = []
+
+api_id = ''
+api_hash = ''
+
+session_name = 'my_session'
 
 
 async def callback(message):
@@ -16,7 +21,7 @@ async def callback(message):
 
 
 async def main():
-    crawler = TelegramCrawler(keywords, telegram_public, telegram_private, callback)
+    crawler = TelegramCrawler(keywords, telegram_public, telegram_private, callback, api_id, api_hash, session_name)
 
     await crawler.start()
 
