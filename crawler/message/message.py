@@ -28,7 +28,7 @@ class Message:
                                                       offset_date=None))
             for message in messages.messages:
                 self.comments.append(Message(message))
-        except:
+        except (Exception,):
             print('No comments')
 
     def search_by_keywords(self, keywords):

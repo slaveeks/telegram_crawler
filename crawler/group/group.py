@@ -31,7 +31,7 @@ class Group:
 
     async def join_to_group(self):
         """
-        join to telegram group
+        Join to telegram group
         """
         await self.client(JoinChannelRequest(self.channel))
 

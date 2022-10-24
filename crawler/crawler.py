@@ -1,6 +1,7 @@
 import logging
 from telethon import events
 from telethon import TelegramClient
+
 from crawler.group.group import Group
 from crawler.message.message import Message
 
@@ -75,7 +76,7 @@ class TelegramCrawler:
                 message_from_event = Message(event.original_update.message)
                 if message_from_event.search_by_keywords(self.keywords):
                     await self.__parse_message(message_from_event)
-            except:
+            except (Exception,):
                 print('Invalid type of message')
 
         # Run telegram client to wait for incoming events
