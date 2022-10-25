@@ -1,7 +1,10 @@
 import asyncio
 from crawler.crawler import TelegramCrawler
 
-from settings import KEYWORDS, API_ID, API_HASH, TELEGRAM_PUBLIC, TELEGRAM_PRIVATE, SESSION_NAME
+from settings import API_ID, API_HASH, TELEGRAM_PRIVATE, SESSION_NAME
+
+KEYWORDS = ['editor.js', 'CodeX']
+TELEGRAM_PUBLIC = ['habr_com', 'slaveeks_test_channel', 'test_chat_test_slaveeks']
 
 
 async def callback(message):

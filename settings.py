@@ -9,7 +9,7 @@ TELEGRAM_PUBLIC = os.environ.get('TELEGRAM_PUBLIC')
 
 TELEGRAM_PRIVATE = os.environ.get('TELEGRAM_PRIVATE')
 
-API_ID = os.environ.get('API_ID')
+API_ID = int(os.environ.get('API_ID'))
 
 API_HASH = os.environ.get('API_HASH')
 
